@@ -82,7 +82,6 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
             self.tableView.tableFooterView?.isHidden = false
             
             DispatchQueue.global().async {
-                sleep(1)
                 self.loadMovies()
                 DispatchQueue.main.async {
                     spinner.stopAnimating()
