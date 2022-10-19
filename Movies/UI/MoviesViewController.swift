@@ -15,6 +15,7 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
     private let movieService: MovieService
     private let identifier = "MovieCell"
     private var page = 1
+    private var isLoading = false
     
     init(movieService: MovieService) {
         self.movieService = movieService
@@ -28,7 +29,6 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
     override func viewDidLoad() {
         super.viewDidLoad()
         setupTableView()
-        loadMovies()
     }
     
     private func setupTableView() {
@@ -39,12 +39,14 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
         view.addSubview(tableView)
     }
     
-    private func loadMovies() {
+    private func loadMovies(completion: @escaping () -> Void) {
         movieService.loadMovie(page: page, locale: localeLanguage()) { [weak self] result in
             switch result {
             case .success(let movies):
                 self?.items += movies
+                self?.page += 1
                 DispatchQueue.main.async {
+                    completion()
                     self?.tableView.reloadData()
                 }
             case .failure(let error):
@@ -67,14 +69,15 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
         cell.configure(model: item)
         return cell
     }
-
-    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    var count = 0
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let currentOffset = scrollView.contentOffset.y
         let contentHeight = scrollView.contentSize.height - scrollView.frame.height
         let spinner = UIActivityIndicatorView(style: .medium)
         
-        if contentHeight - currentOffset <= 10.0  {
-            self.page += 1
+        if contentHeight - currentOffset <= 10.0 && !isLoading {
+            isLoading = true
             
             spinner.startAnimating()
             spinner.frame = CGRect(x: 0, y: 0, width: tableView.bounds.width, height: 44)
@@ -82,11 +85,13 @@ class MoviesViewController: UIViewController, UITableViewDelegate, UITableViewDa
             self.tableView.tableFooterView?.isHidden = false
             
             DispatchQueue.global().async {
-                self.loadMovies()
-                DispatchQueue.main.async {
-                    spinner.stopAnimating()
-                    self.tableView.tableFooterView?.isHidden = true
-                }
+                self.loadMovies(completion: {
+                    self.isLoading = false
+                    DispatchQueue.main.async {
+                        spinner.stopAnimating()
+                        self.tableView.tableFooterView?.isHidden = true
+                    }
+                })
             }
         }
     }
